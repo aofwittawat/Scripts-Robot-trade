@@ -2,7 +2,7 @@
 // © aofwittawat
 
 //@version=5
-strategy("One EMA Strategy", overlay=true)
+indicator("EMA_v1", overlay = true)
 
 //User Input
 ema_len     =   input.int(title = "EMA length", defval = 18, tooltip="Timeframe day use EMA18 and 5mins use EMA22", step = 5)
@@ -16,22 +16,17 @@ validLong       = false
 validShort      = false
 entryLong       = false
 entryShort      = false
-validLong   :=  close > ema and not na(ema) 
-validShort  :=  close < ema and not na(ema) 
+validLong   :=  close > ema 
+validShort  :=  close < ema 
 position    :=  validLong ? 1 : -1
-entryLong       :=  position[1] == -1 and position == 1 or position == 0 and strategy.position_size == 0 and barstate.isconfirmed
-entryShort      :=  position[1] == 1 and position == -1 or position == 0 and strategy.position_size == 0 and barstate.isconfirmed
+entryLong       :=  position[1] == -1 and position == 1 or position == 0
+entryShort      :=  position[1] == 1 and position == -1 or position == 0
 mafilter    = close > ema ? true : false
 
-// Enter order buy and sell
-if entryLong
-    strategy.close(id="Short", when=strategy.position_size < 0)
-    strategy.entry(id="Long", direction=strategy.long)
-if entryShort
-    strategy.close(id="Long",  when=strategy.position_size > 0)
-    strategy.entry(id="Short", direction=strategy.short)
 //Draw
 plot(ema, title = "EMA", color = mafilter ? color.green : color.red, linewidth = 2)
-bgcolor(validLong ? color.new(color.green,80): color.new(color.red,80))
-// plotshape(entryLong, style=shape.triangleup, color=color.green, location=location.belowbar, text="Long", textcolor = color.white, title="Long")
-// plotshape(entryShort, style=shape.triangledown, color=color.red, location=location.abovebar, text="Short", textcolor = color.white, title="Short")
+bgcolor(validLong ? color.new(color.green,90): color.new(color.red,90))
+plotshape(entryLong, style=shape.triangleup, color=color.green, location=location.belowbar, text="Long", textcolor = color.white, title="Long")
+plotshape(entryShort, style=shape.triangledown, color=color.red, location=location.abovebar, text="Short", textcolor = color.white, title="Short")
+alertcondition(validLong, "Long alert","This bar close higher than {{ema}} of {{ticker}}")
+alertcondition(validShort, "Short alert","This bar close lower than {{ema}} of {{ticker}}")
