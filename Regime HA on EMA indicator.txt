@@ -1,0 +1,30 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © aofwittawat
+
+//@version=5
+indicator("Regime HA on EMA", overlay = false)
+
+//Get User Input
+res             = input.timeframe(title = "Timeframe", defval ="D")
+ema_HA_len      = input.int(title="EMA length calculate with HA", defval = 18)
+
+//Define custom security function
+f_sec(_market ,_res, _exp) 
+     => request.security(ticker.heikinashi(syminfo.tickerid),_res,_exp[barstate.isconfirmed ? 0 : 1])
+
+//HA calculate close price
+HA_open     = f_sec(ticker.heikinashi(syminfo.tickerid), res, open)
+HA_high     = f_sec(ticker.heikinashi(syminfo.tickerid), res, high)
+HA_low      = f_sec(ticker.heikinashi(syminfo.tickerid), res, low)
+HA_close    = f_sec(ticker.heikinashi(syminfo.tickerid), res, close)
+
+//Get EMA value filter
+ema_HA      = ta.ema(HA_close,ema_HA_len)
+emaValue    = f_sec(syminfo.tickerid, res, ema_HA)
+
+//Check marketprice is above or below EMA_HA filter
+marketPrice     = f_sec(syminfo.tickerid, res, HA_close)
+regimeFilter    = marketPrice > emaValue 
+
+//Change BG
+bgcolor(regimeFilter ? color.green : color.red)

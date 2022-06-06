@@ -1,0 +1,35 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © aofwittawat
+
+//@version=5
+strategy("One EMA Strategy", overlay=true)
+
+//User Input
+ema_len     =   input.int(title = "EMA length", defval = 18, tooltip="Timeframe day use EMA18 and 5mins use EMA22", step = 5)
+
+//Get EMA indicator
+ema         =   ta.ema(close, ema_len)
+
+//Get Criteria
+var position    = 0
+validLong       = false
+validShort      = false
+entryLong       = false
+entryShort      = false
+validLong   :=  close > ema and not na(ema) 
+validShort  :=  close < ema and not na(ema) 
+position    :=  validLong ? 1 : -1
+entryLong       :=  position[1] == -1 and position == 1 or position == 0 and strategy.position_size == 0 and barstate.isconfirmed
+entryShort      :=  position[1] == 1 and position == -1 or position == 0 and strategy.position_size == 0 and barstate.isconfirmed
+mafilter    = close > ema ? true : false
+
+// Enter order buy and sell
+if entryLong
+    strategy.close(id="Short", when=strategy.position_size < 0)
+    strategy.entry(id="Long", direction=strategy.long)
+if entryShort
+    strategy.close(id="Long",  when=strategy.position_size > 0)
+    strategy.entry(id="Short", direction=strategy.short)
+//Draw
+plot(ema, title = "EMA", color = mafilter ? color.green : color.red, linewidth = 2)
+bgcolor(validLong ? color.new(color.green,80): color.new(color.red,80))
