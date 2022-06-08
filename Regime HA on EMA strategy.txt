@@ -2,18 +2,19 @@
 // © aofwittawat
 
 //@version=5
-strategy("Regime HA on EMA strategy", overlay=true, initial_capital = 10000,default_qty_type = strategy.cash, default_qty_value = 2000)
+strategy("Regime HA on EMA strategy", overlay=true)
 
 //Get User Input
-var g_regime    = "--------------------- Regime filter settings ---------------------"
-res             = input.timeframe(title = "Timeframe", defval ="240" , group = g_regime)
-ema_HA_len      = input.int(title="EMA length calculate with HA", defval = 20, step =10, group =g_regime)
+var g_regime        = "--------------------- Regime filter settings ---------------------"
+res                 = input.timeframe(title = "Timeframe", defval ="240" , group = g_regime)
+ema_HA_len          = input.int(title="EMA length calculate with HA", defval = 25, step =10, group =g_regime)
 var g_filter        = "--------------------- Backtest settings --------------------- "
-startBalance    = input.float(title="Starting Balance", defval=10000.0, group=g_filter, tooltip="Your starting balance for the inbuilt tester system")
-i_startTime         = input.time(title="Start Date Filter", defval=timestamp("01 Jan 2000 13:30 +0000"), group=g_filter, tooltip="Date & time to begin trading from")
+startBalance        = input.float(title="Starting Balance", defval=10000.0, group=g_filter, tooltip="Your starting balance for the inbuilt tester system")
+i_startTime         = input.time(title="Start Date Filter", defval=timestamp("01 Jan 2019 13:30 +0000"), group=g_filter, tooltip="Date & time to begin trading from")
 i_endTime           = input.time(title="End Date Filter", defval=timestamp("1 Jan 2099 19:30 +0000"), group=g_filter, tooltip="Date & time to stop trading")
 useRegime           = input.bool(title= "Show Regime in Chart", defval = true)
 showEMA             = input.bool(title="Show EMA in chart", defval = true)
+
 
 // See if this bar's time happened within date filter
 dateFilter = time >= i_startTime and time <= i_endTime
@@ -26,8 +27,10 @@ f_sec(_market ,_res, _exp)
 HA_close    = f_sec(ticker.heikinashi(syminfo.tickerid), res, close)
 
 //Get EMA value filter
+atr         = ta.atr(14)
 ema_HA      = ta.ema(HA_close,ema_HA_len)
 emaValue    = f_sec(ticker.heikinashi(syminfo.tickerid), res, ema_HA)
+
 
 //Check marketprice is above or below EMA_HA filter
 marketPrice     = f_sec(syminfo.tickerid, res, HA_close)
@@ -38,18 +41,24 @@ validLong   = false
 validShort  = false
 
 //Detect trade setup
-if regimeFilter and barstate.isconfirmed and dateFilter
+if regimeFilter and barstate.isconfirmed and dateFilter 
     validLong  := true
     validShort := false
-    strategy.entry(id="Long", direction = strategy.long)
-if regimeFilter == false and barstate.isconfirmed and dateFilter
+    strategy.entry(id="Long", direction = strategy.long, comment = "Long")
+    strategy.close(id="Short",when=strategy.position_size < 0)
+if regimeFilter == false and barstate.isconfirmed and dateFilter 
     validShort := true
     validLong  := false
-    strategy.entry(id="Short", direction = strategy.short)
+    strategy.entry(id="Short", direction = strategy.short, comment = "Short")
+    strategy.close(id="Long", when=strategy.position_size > 0)
+    
 
 //Draw indicators
 plotshape(useRegime, style=shape.square, size =size.normal, location = location.bottom, color = regimeFilter ? color.green : color.red, title = "Regime Filter")
 plot(showEMA ? ema_HA : na)
+
+plotchar(validLong, color = color.new(color.green,100))
+plotchar(validShort, color = color.new(color.red,100))
 
 // =============================================================================
 // START BACKTEST CODE
