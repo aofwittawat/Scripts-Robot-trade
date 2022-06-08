@@ -1,0 +1,54 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © aofwittawat
+
+//@version=5
+strategy("RSI-7 breakout", overlay=true, default_qty_value = 2000, default_qty_type= strategy.cash, currency = currency.USDT)
+
+lookback                = input.int(title = "How many lookback-bars", defval = 10)
+rsi_len                 = input.int(title = "RSI length", defval = 7, step =1)
+stop_multiplier         = input.float(title = "Stop Multiplier", defval = 1.0)
+rr                      = input.float(title = "RR", defval = 1.0)
+useEMA                  = input.bool(title ="Use ema to prove the trend", defval = true)
+ema_len                 = input.int(title = "EMA length", defval = 20,step= 5)
+
+//indicator
+rsi     =   ta.rsi(close, rsi_len)
+atr     =   ta.atr(14)
+ema     =   ta.ema(close,ema_len)
+
+//Entry
+buySignal       =   rsi > 70 and close == ta.highest(close, lookback) and not na(rsi) and not na(atr) and strategy.position_size == 0 and barstate.isconfirmed and (useEMA ?  low > ema : na )
+sellSignal      =   rsi < 30 and close == ta.lowest(close, lookback) and not na(rsi) and not na(atr) and strategy.position_size == 0 and barstate.isconfirmed and (useEMA ?  high < ema : na )
+
+//Calculate MM
+longStop    =   low  - (atr * stop_multiplier)
+shortStop   =   high + (atr * stop_multiplier)
+longStopDistance    =   close - longStop
+shortStopDistance   =   shortStop - close
+longTarget      =   close + (longStopDistance * rr)
+shortTarget     =   close - (shortStopDistance * rr)
+
+var t_stop      =   0.0
+var t_target    =   0.0
+
+//Entry order
+if buySignal 
+    strategy.entry(id="Long", direction=strategy.long)
+    t_stop      :=      longStop
+    t_target    :=      longTarget
+if sellSignal
+    strategy.entry(id="Short", direction=strategy.short)
+    t_stop      :=      shortStop
+    t_target    :=      shortTarget
+
+//Exit
+strategy.exit(id="Long Exit", from_entry ="Long", limit = t_target, stop=t_stop,when=strategy.position_size> 0)
+strategy.exit(id="Short Exit", from_entry ="Short", limit = t_target, stop=t_stop,when=strategy.position_size< 0)
+
+//Draw
+plotshape(buySignal, style=shape.triangleup,location=location.belowbar,color=color.green)
+plotshape(sellSignal, style=shape.triangledown,location=location.abovebar,color=color.red)
+plot(strategy.position_size != 0 ? t_stop : na, color=color.red, style=plot.style_linebr)
+plot(strategy.position_size != 0 ? t_target : na, color=color.green, style=plot.style_linebr)
+plot(useEMA ? ema :na, color = color.yellow)
+
