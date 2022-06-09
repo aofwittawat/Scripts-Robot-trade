@@ -4,21 +4,28 @@
 //@version=5
 strategy("RSI-7 breakout", overlay=true, default_qty_value = 2000, default_qty_type= strategy.cash, currency = currency.USDT)
 
-lookback                = input.int(title = "How many lookback-bars", defval = 10)
+import ZenAndTheArtOfTrading/ZenLibrary/5 as aof
+
+lookback                = input.int(title = "How many lookback-bars", defval = 10,step = 5)
 rsi_len                 = input.int(title = "RSI length", defval = 7, step =1)
 stop_multiplier         = input.float(title = "Stop Multiplier", defval = 1.0)
-rr                      = input.float(title = "RR", defval = 1.0)
+rr                      = input.float(title = "RR", defval = 1.2,step = 0.1)
 useEMA                  = input.bool(title ="Use ema to prove the trend", defval = true)
 ema_len                 = input.int(title = "EMA length", defval = 20,step= 5)
+candle_max              = input.float(title = "candleMaxFilter", defval=2.5, minval=0.0, step=0.1)
 
 //indicator
 rsi     =   ta.rsi(close, rsi_len)
 atr     =   ta.atr(14)
 ema     =   ta.ema(close,ema_len)
 
+//candle limit
+candle_ok   =   aof.atrFilter(atr, candle_max)
+
 //Entry
-buySignal       =   rsi > 70 and close == ta.highest(close, lookback) and not na(rsi) and not na(atr) and strategy.position_size == 0 and barstate.isconfirmed and (useEMA ?  low > ema : na )
-sellSignal      =   rsi < 30 and close == ta.lowest(close, lookback) and not na(rsi) and not na(atr) and strategy.position_size == 0 and barstate.isconfirmed and (useEMA ?  high < ema : na )
+buySignal       =   rsi > 70 and close == ta.highest(close, lookback) and not na(rsi) and not na(atr) and strategy.position_size == 0 and barstate.isconfirmed and (useEMA ?  low > ema : true ) and candle_ok
+sellSignal      =   rsi < 30 and close == ta.lowest(close, lookback) and not na(rsi) and not na(atr) and strategy.position_size == 0 and barstate.isconfirmed and (useEMA ?  high < ema : true ) and candle_ok
+
 
 //Calculate MM
 longStop    =   low  - (atr * stop_multiplier)
@@ -28,27 +35,30 @@ shortStopDistance   =   shortStop - close
 longTarget      =   close + (longStopDistance * rr)
 shortTarget     =   close - (shortStopDistance * rr)
 
+
 var t_stop      =   0.0
 var t_target    =   0.0
 
 //Entry order
 if buySignal 
-    strategy.entry(id="Long", direction=strategy.long)
+    strategy.entry(id="Long", direction=strategy.long,comment = "Long")
     t_stop      :=      longStop
     t_target    :=      longTarget
 if sellSignal
-    strategy.entry(id="Short", direction=strategy.short)
+    strategy.entry(id="Short", direction=strategy.short,comment ="Short")
     t_stop      :=      shortStop
     t_target    :=      shortTarget
 
 //Exit
-strategy.exit(id="Long Exit", from_entry ="Long", limit = t_target, stop=t_stop,when=strategy.position_size> 0)
-strategy.exit(id="Short Exit", from_entry ="Short", limit = t_target, stop=t_stop,when=strategy.position_size< 0)
+strategy.exit(id="Long Exit", from_entry ="Long", limit = t_target, stop=t_stop,when=strategy.position_size> 0, comment = "Long Exit")
+strategy.exit(id="Short Exit", from_entry ="Short", limit = t_target, stop=t_stop,when=strategy.position_size< 0, comment = "Short Exit")
+
 
 //Draw
 plotshape(buySignal, style=shape.triangleup,location=location.belowbar,color=color.green)
 plotshape(sellSignal, style=shape.triangledown,location=location.abovebar,color=color.red)
-plot(strategy.position_size != 0 ? t_stop : na, color=color.red, style=plot.style_linebr)
-plot(strategy.position_size != 0 ? t_target : na, color=color.green, style=plot.style_linebr)
-plot(useEMA ? ema :na, color = color.yellow)
-
+plot(strategy.position_size != 0 ? t_stop : na, title = "Stop",color=color.red, style=plot.style_linebr)
+plot(strategy.position_size != 0 ? t_target : na, title ="Target", color=color.green, style=plot.style_linebr)
+plot(useEMA ? ema :na, color = color.yellow,title ="EMA value")
+plotchar(candle_ok,title="Candle OK", color = color.new(color.green,100))
+plotchar(syminfo.mintick,title="mintick", color = color.new(color.green,100))
